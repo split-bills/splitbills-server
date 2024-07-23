@@ -8,9 +8,9 @@ const {
 } = require("../controllers/homeController");
 
 // All get requests
-router.get("/:email", getFirstName);
-router.get("/balance/:email", getBalance);
-router.get("/transactions/:email", getTransactions);
+router.get("/name", getFirstName);
+router.get("/balance", getBalance);
+router.get("/transactions", getTransactions);
 
 // All post requests
 router.post("/transaction", postTransaction);

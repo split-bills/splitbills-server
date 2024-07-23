@@ -9,8 +9,8 @@ exports.getFirstName = async (req, res) => {
   try {
     const client = await pool.connect();
     const result = await client.query(
-      "SELECT first_name FROM users WHERE email = $1",
-      [req.params.email]
+      "SELECT first_name FROM users WHERE id = $1",
+      [req.session.userId]
     );
     res.json(result.rows[0]);
     client.release();
@@ -28,24 +28,23 @@ exports.getBalance = async (req, res) => {
   try {
     const client = await pool.connect();
     // get the user id
-    const user_data = await client.query(
-      "SELECT id FROM users WHERE email = $1",
-      [req.params.email]
-    );
-    if (user_data.rows.length === 0) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    // const user_data = await client.query("SELECT id FROM users WHERE id = $1", [
+    //   req.session.userId,
+    // ]);
+    // if (user_data.rows.length === 0) {
+    //   return res.status(404).json({ message: "User not found" });
+    // }
     const incoming = await client.query(
       `SELECT COALESCE(SUM(amount), 0) as incoming_balance FROM expenses WHERE
       user_id = $1 AND is_cleared = false AND amount > 0;
       `,
-      [user_data.rows[0].id]
+      [req.session.userId]
     );
     const outgoing = await client.query(
       `SELECT COALESCE(SUM(amount), 0) as outgoing_balance FROM expenses WHERE
       other_user_id = $1 AND is_cleared = false AND amount > 0;
       `,
-      [user_data.rows[0].id]
+      [req.session.userId]
     );
     res.json({
       incoming: incoming.rows[0].incoming_balance,
@@ -64,19 +63,6 @@ exports.getTransactions = async (req, res) => {
   console.log("getTransactions started");
   try {
     const client = await pool.connect();
-    const email = req.params.email;
-
-    // Get the user id
-    const user_data = await client.query(
-      "SELECT id FROM users WHERE email = $1",
-      [email]
-    );
-
-    if (user_data.rows.length === 0) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const userId = user_data.rows[0].id;
 
     // Get incoming transactions
     const incoming_transactions = await client.query(
@@ -85,7 +71,7 @@ exports.getTransactions = async (req, res) => {
        FROM expenses e
        JOIN users u ON e.user_id = u.id
        WHERE e.user_id = $1 AND e.is_cleared = false AND e.amount > 0;`,
-      [userId]
+      [req.session.userId]
     );
 
     // Get outgoing transactions
@@ -95,7 +81,7 @@ exports.getTransactions = async (req, res) => {
        FROM expenses e
        JOIN users u ON e.other_user_id = u.id
        WHERE e.other_user_id = $1 AND e.is_cleared = false AND e.amount > 0;`,
-      [userId]
+      [req.session.userId]
     );
 
     // Create the final array
@@ -120,20 +106,24 @@ exports.getTransactions = async (req, res) => {
 // Post transaction
 exports.postTransaction = async (req, res) => {
   console.log("postTransaction started");
-
-  let userEmail, friendEmail;
-  if (req.body.type === "Incoming") {
-    userEmail = req.body.userEmail;
-    friendEmail = req.body.friendEmail;
-  } else {
-    userEmail = req.body.friendEmail;
-    friendEmail = req.body.userEmail;
-  }
-  const reason = req.body.reason;
-  const amount = req.body.amount;
-
   try {
     const client = await pool.connect();
+    const user_data = await client.query(
+      "SELECT email from users WHERE id = $1",
+      [req.session.userId]
+    );
+
+    let userEmail, friendEmail;
+    if (req.body.type === "Incoming") {
+      userEmail = user_data.rows[0].email;
+      friendEmail = req.body.friendEmail;
+    } else {
+      userEmail = req.body.friendEmail;
+      friendEmail = user_data.rows[0].email;
+    }
+    const reason = req.body.reason;
+    const amount = req.body.amount;
+
     const result_ = await client.query("SELECT * FROM users WHERE email = $1", [
       req.body.friendEmail,
     ]);

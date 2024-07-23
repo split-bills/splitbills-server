@@ -34,15 +34,14 @@ exports.getNames = async (req, res) => {
 exports.getEvents = async (req, res) => {
   console.log("getEvents started..");
   try {
-    const email = req.query.email;
     const client = await pool.connect();
     const result = await client.query(
       `SELECT e.name, e.date
       FROM events e
       JOIN eventpayments ep ON e.id = ep.event_id
       JOIN users u ON ep.user_id = u.id
-      WHERE u.email = $1`,
-      [email]
+      WHERE u.id = $1`,
+      [req.session.userId]
     );
     const events = result.rows;
     client.release();
@@ -53,6 +52,26 @@ exports.getEvents = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   } finally {
     console.log("getEvents completed..");
+  }
+};
+
+// get the user email
+exports.getEmail = async (req, res) => {
+  console.log("getEmail started..");
+  try {
+    const client = await pool.connect();
+    const result = await client.query("SELECT email FROM users WHERE id = $1", [
+      req.session.userId,
+    ]);
+    const email = result.rows[0].email;
+    client.release();
+    console.log("email: ", email);
+    res.json({ email: email });
+  } catch (error) {
+    console.error("Error retrieving data from database", error);
+    res.status(500).json({ message: "Internal server error" });
+  } finally {
+    console.log("getEmail completed..");
   }
 };
 
@@ -67,10 +86,9 @@ exports.postEvent = async (req, res) => {
     const client = await pool.connect();
     const result = await client.query(
       `INSERT INTO events (name, date, owner_user_id)
-      VALUES ($1, $2, 
-        (SELECT id FROM users WHERE email = $3)
+      VALUES ($1, $2, $3
       ) RETURNING id`,
-      [event.name, event.date, event.owner]
+      [event.name, event.date, req.session.userId]
     );
     const eventId = result.rows[0].id;
     console.log("eventId: ", eventId);

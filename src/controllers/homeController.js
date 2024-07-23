@@ -66,29 +66,32 @@ exports.getTransactions = async (req, res) => {
 
     // Get incoming transactions
     const incoming_transactions = await client.query(
-      `SELECT e.amount, e.reason, e.created_at, 
+      `SELECT e.id, e.amount, e.reason, e.created_at, 
               u.first_name, u.last_name, u.email 
        FROM expenses e
-       JOIN users u ON e.user_id = u.id
+       JOIN users u ON e.other_user_id = u.id
        WHERE e.user_id = $1 AND e.is_cleared = false AND e.amount > 0;`,
       [req.session.userId]
     );
 
     // Get outgoing transactions
     const outgoing_transactions = await client.query(
-      `SELECT e.amount, e.reason, e.created_at, 
+      `SELECT e.id, e.amount, e.reason, e.created_at, 
               u.first_name, u.last_name, u.email 
        FROM expenses e
-       JOIN users u ON e.other_user_id = u.id
+       JOIN users u ON e.user_id = u.id
        WHERE e.other_user_id = $1 AND e.is_cleared = false AND e.amount > 0;`,
       [req.session.userId]
     );
 
     // Create the final array
-    const final_array = groupTransactions(
+    const final_array = await groupTransactions(
       incoming_transactions.rows,
       outgoing_transactions.rows
     );
+
+    // console.log(final_array[0]);
+    console.log(final_array[0].incoming_transactions);
 
     res.json(final_array);
 
@@ -157,5 +160,26 @@ exports.postTransaction = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   } finally {
     console.log("postTransaction completed");
+  }
+};
+
+// All patch requests
+
+// Clear transaction
+exports.clearTransaction = async (req, res) => {
+  console.log("clearTransaction started");
+  try {
+    const client = await pool.connect();
+    const result = await client.query(
+      `UPDATE expenses SET is_cleared = true WHERE id = $1;`,
+      [req.body.expenses_id]
+    );
+    res.sendStatus(200);
+    client.release();
+  } catch (error) {
+    console.error("Error retrieving data from database", error);
+    res.status(500).json({ message: "Internal server error" });
+  } finally {
+    console.log("clearTransaction completed");
   }
 };

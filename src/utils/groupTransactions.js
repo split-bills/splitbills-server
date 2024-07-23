@@ -1,4 +1,4 @@
-const groupTransactions = (incoming, outgoing) => {
+const groupTransactions = async (incoming, outgoing) => {
   const userMap = new Map();
 
   // Process incoming transactions

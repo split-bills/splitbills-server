@@ -1,4 +1,5 @@
 const pool = require("../config/db").pool;
+const optimizeTransactions = require("../utils/optimizeTransactions");
 
 // All get requests
 
@@ -83,6 +84,11 @@ exports.postEvent = async (req, res) => {
   try {
     const event = req.body;
     console.log("event: ", event);
+    const minimized = optimizeTransactions(
+      event.participants,
+      event.expenses,
+      event.paidAmounts
+    );
     const client = await pool.connect();
     const result = await client.query(
       `INSERT INTO events (name, date, owner_user_id)
@@ -96,7 +102,7 @@ exports.postEvent = async (req, res) => {
     for (let i = 0; i < event.participants.length; i++) {
       await client.query(
         `INSERT INTO eventpayments (event_id, user_id, spent, paid)
-        VALUES ($1, 
+        VALUES ($1,
           (SELECT id FROM users WHERE email = $2),
             $3, $4)`,
         [
@@ -107,6 +113,24 @@ exports.postEvent = async (req, res) => {
         ]
       );
     }
+
+    for (let i = 0; i < minimized.length; i++) {
+      await client.query(
+        `INSERT INTO expenses (user_id, other_user_id, event_id, reason, amount)
+        VALUES (
+          (SELECT id FROM users WHERE email = $1),
+          (SELECT id FROM users WHERE email = $2),
+          $3, $4, $5)`,
+        [
+          minimized[i].from,
+          minimized[i].to,
+          eventId,
+          event.name,
+          minimized[i].amount,
+        ]
+      );
+    }
+
     client.release();
     res.json({ message: "Event created successfully" });
   } catch {

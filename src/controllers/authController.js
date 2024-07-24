@@ -3,6 +3,17 @@ const bcrypt = require("bcrypt");
 
 const saltRounds = 10;
 
+// All get requests
+exports.check = (req, res) => {
+  console.log("Check started...");
+  if (req.session.userId) {
+    res.json({ authenticated: true });
+  } else {
+    res.json({ authenticated: false });
+  }
+  console.log("Check completed..");
+};
+
 // All post requests
 exports.signUp = async (req, res) => {
   console.log("SignUp Started...");

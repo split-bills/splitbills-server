@@ -105,3 +105,15 @@ exports.login = async (req, res) => {
     console.log("Login completed..");
   }
 };
+
+exports.logout = (req, res) => {
+  console.log("Logout started...");
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).send("Failed to log out");
+    }
+    res.clearCookie("connect.sid");
+    res.status(200).send("Logged out");
+  });
+  console.log("Logout completed..");
+};

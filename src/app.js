@@ -8,11 +8,11 @@ const pool = require("./config/db").pool;
 require("dotenv").config();
 
 // Import Routes
+const authRoutes = require("./routes/authRoutes");
 const homeRoutes = require("./routes/homeRoutes");
 const eventsRoutes = require("./routes/eventsRoutes");
+const statsRoutes = require("./routes/statsRoutes");
 const profileRoutes = require("./routes/profileRoutes");
-const authRoutes = require("./routes/authRoutes");
-// const statsRoutes = require('./routes/statsRoutes');
 
 const app = express();
 
@@ -56,6 +56,7 @@ function isAuthenticated(req, res, next) {
 // Routes
 app.use("/home", isAuthenticated, homeRoutes); // Protecting the home route
 app.use("/events", isAuthenticated, eventsRoutes); // Protecting the events route
+app.use("/stats", isAuthenticated, statsRoutes); // Protecting the stats route
 app.use("/profile", isAuthenticated, profileRoutes); // Protecting the profile route
 app.use("/auth", authRoutes);
 

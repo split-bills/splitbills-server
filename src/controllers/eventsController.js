@@ -37,11 +37,13 @@ exports.getEvents = async (req, res) => {
   try {
     const client = await pool.connect();
     const result = await client.query(
-      `SELECT e.name, e.date
-      FROM events e
-      JOIN eventpayments ep ON e.id = ep.event_id
-      JOIN users u ON ep.user_id = u.id
-      WHERE u.id = $1`,
+      `SELECT e.name, e.date, COUNT(ep.event_id) AS attendees
+        FROM eventpayments ep
+        JOIN events e ON ep.event_id = e.id
+        JOIN eventpayments ep2 ON e.id = ep2.event_id AND ep2.user_id = $1
+        GROUP BY e.name, e.date
+        ORDER BY e.date DESC
+        `,
       [req.session.userId]
     );
     const events = result.rows;
@@ -84,18 +86,22 @@ exports.postEvent = async (req, res) => {
   try {
     const event = req.body;
     console.log("event: ", event);
+
     const minimized = optimizeTransactions(
       event.participants,
       event.expenses,
       event.paidAmounts
     );
+
     const client = await pool.connect();
+
     const result = await client.query(
       `INSERT INTO events (name, date, owner_user_id)
       VALUES ($1, $2, $3
       ) RETURNING id`,
       [event.name, event.date, req.session.userId]
     );
+
     const eventId = result.rows[0].id;
     console.log("eventId: ", eventId);
 
